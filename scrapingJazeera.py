@@ -1,33 +1,39 @@
 import requests
 from bs4 import BeautifulSoup
 import urllib.request
-import csv
+import json
 
-filecsv = open('PoliticsArticlesExp4.csv', 'w',encoding='utf-8-sig')
-
-
-url = 'https://www.aljazeera.net/politics/'
+url = 'https://www.alarabiya.net/sport/archive?pageNo='
+file = open('SportsArticles.json', 'w',encoding='utf-8-sig')
+file.write('[\n')
 data = {}
-csv_columns = ['title','article','categorie']
-writer = csv.DictWriter(filecsv, fieldnames=csv_columns)
-
-writer.writeheader()
-r = requests.get(url)
-article_count = 0
-
-soup = BeautifulSoup(r.content, "html.parser")
-allarticles = soup.find_all("div", {'class': 'gc__content'})
-while article_count<1000:
-   for pt in allarticles :
-       title = pt.find('h3', {'class' : 'gc__title'})
-       article = pt.find('div', {'class' : 'gc__body-wrap'})
-       categorie = soup.find('div', {'class' : 'section-header__title'})
-       article_count+=1
-       writer.writerow({'title': title.text.strip(), 'article': article.text.strip(), 'categorie': categorie.text.strip()})
-       data['title'] = title.text.strip()
-       data['article'] = article.text.strip()
-       data['categorie'] = categorie.text.strip()
-       if article_count == 1000:  # Sortir de la boucle lorsque 1000 articles sont extraits
-           break
-
-filecsv.close()
+for page in range(1,100):
+    print('---', page, '---')
+    r = requests.get(url + str(page))
+    print(url + str(page))
+    soup = BeautifulSoup(r.content, "html.parser")
+    links=[]
+    allarticles = soup.find_all("span", {'class': 'latest_content'})
+    for pt in allarticles :
+        article_link = pt.find('a')
+        href = article_link.get("href")
+        links.append(href)
+    n = len(links)
+    for link in range(n):
+        r1 = requests.get('https://www.alarabiya.net' + links[link])
+        soup1 = BeautifulSoup(r1.content, "html.parser")
+        title = soup1.find("h1", {'class': 'headingInfo_title'})
+        categorie = soup1.find("a", {'href' : '/sport'})
+        allParagraphs = soup1.find_all("p", {'class': 'body-1'})
+        article = ""
+        l = len(allParagraphs)
+        for p in range(l):
+            article = article + allParagraphs[p].text.strip()
+        data['title'] = title.text.strip()
+        data['article'] = article.strip()
+        data['categorie'] = categorie.text.strip()
+        json_data = json.dumps(data, ensure_ascii=False)
+        file.write(json_data)
+        file.write(",\n")
+file.write("\n]")
+file.close()
